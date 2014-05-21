@@ -46,7 +46,8 @@ public:
            const QString& scriptProp,
            const QString& scriptCode,
            bool insecure,
-           bool smooth);
+           bool smooth,
+           int outQuality);
 
 private slots:
   void DocumentComplete(bool ok);
@@ -72,4 +73,5 @@ protected:
   QString      mScriptCode;
   bool         mInsecure;
   bool         mSmooth;
+  int          mOutQuality;
 };

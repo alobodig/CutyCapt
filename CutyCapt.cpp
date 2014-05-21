@@ -38,7 +38,7 @@
 #include <QNetworkProxy>
 #include "CutyCapt.hpp"
 
-#if QT_VERSION >= 0x040600 && 0
+#if QT_VERSION >= 0x040600
 #define CUTYCAPT_SCRIPT 1
 #endif
 
@@ -162,7 +162,7 @@ CutyPage::setAttribute(QWebSettings::WebAttribute option,
 
 CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputFormat format,
                    const QString& scriptProp, const QString& scriptCode, bool insecure,
-                   bool smooth) {
+                   bool smooth, int outQuality) {
   mPage = page;
   mOutput = output;
   mDelay = delay;
@@ -174,6 +174,7 @@ CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputForma
   mScriptProp = scriptProp;
   mScriptCode = scriptCode;
   mScriptObj = new QObject();
+  mOutQuality = outQuality;
 
   // This is not really nice, but some restructuring work is
   // needed anyway, so this should not be that bad for now.
@@ -323,8 +324,7 @@ CutyCapt::saveSnapshot() {
 #endif
       mainFrame->render(&painter);
       painter.end();
-      // TODO: add quality
-      image.save(mOutput, format);
+      image.save(mOutput, format, mOutQuality);
     }
   };
 }
@@ -339,7 +339,7 @@ CaptHelp(void) {
     "  --url=<url>                    The URL to capture (http:...|file:...|...)   \n"
     "  --out=<path>                   The target file (.png|pdf|ps|svg|jpeg|...)   \n"
     "  --out-format=<f>               Like extension in --out, overrides heuristic \n"
-//  "  --out-quality=<int>            Output format quality from 1 to 100          \n"
+    "  --out-quality=<int>            Output jpeg format quality from 1 to 100     \n"
     "  --min-width=<int>              Minimal width for the image (default: 800)   \n"
     "  --min-height=<int>             Minimal height for the image (default: 600)  \n"
     "  --max-wait=<ms>                Don't wait more than (default: 90000, inf: 0)\n"
@@ -407,6 +407,7 @@ main(int argc, char *argv[]) {
   int argMaxWait = 90000;
   int argVerbosity = 0;
   int argSmooth = 0;
+  int argOutQuality = 90;
 
   const char* argUrl = NULL;
   const char* argUserStyle = NULL;
@@ -463,7 +464,7 @@ main(int argc, char *argv[]) {
       page.setPrintAlerts(true);
       continue;
 #endif
-    } 
+    }
 
     value = strchr(s, '=');
 
@@ -543,6 +544,10 @@ main(int argc, char *argv[]) {
     } else if (strncmp("--links-included-in-focus-chain", s, nlen) == 0) {
       page.setAttribute(QWebSettings::LinksIncludedInFocusChain, value);
 
+    } else if (strncmp("--out-quality", s, nlen) == 0) {
+        // TODO: add error checking here?
+        argOutQuality = (unsigned int)atoi(value);
+
 #if QT_VERSION >= 0x040500
     } else if (strncmp("--print-backgrounds", s, nlen) == 0) {
       page.setAttribute(QWebSettings::PrintElementBackgrounds, value);
@@ -618,7 +623,7 @@ main(int argc, char *argv[]) {
         method = QNetworkAccessManager::PostOperation;
       else if (strcmp("value", "head") == 0)
         method = QNetworkAccessManager::HeadOperation;
-      else 
+      else
         (void)0; // TODO: ...
 
     } else {
@@ -651,7 +656,7 @@ main(int argc, char *argv[]) {
   }
 
   CutyCapt main(&page, argOut, argDelay, format, scriptProp, scriptCode,
-                !!argInsecure, !!argSmooth);
+                !!argInsecure, !!argSmooth, argOutQuality);
 
   app.connect(&page,
     SIGNAL(loadFinished(bool)),
