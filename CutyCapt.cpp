@@ -263,7 +263,7 @@ CutyCapt::Delayed() {
 }
 
 void
-CutyCapt::handleSslErrors(QNetworkReply* reply, QList<QSslError> errors) {
+CutyCapt::handleSslErrors(QNetworkReply* reply, QList<QSslError>) {
   if (mInsecure) {
     reply->ignoreSslErrors();
   } else {
