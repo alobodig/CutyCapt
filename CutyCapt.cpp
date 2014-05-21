@@ -76,6 +76,24 @@ static struct _CutyExtMap {
   { CutyCapt::OtherFormat,       "",            ""      }
 };
 
+CutyNetworkAccessManager::CutyNetworkAccessManager() {
+  mAllowRemoteResources = true;
+}
+
+void CutyNetworkAccessManager::setAllowRemoteResources(bool allowRemoteResources) {
+  mAllowRemoteResources = allowRemoteResources;
+}
+
+QNetworkReply * CutyNetworkAccessManager::createRequest(Operation op, const QNetworkRequest & req, QIODevice * outgoingData) {
+  if (req.url().scheme() != "file" && !mAllowRemoteResources) {
+    QNetworkRequest adjusted = req;
+    adjusted.setUrl(QUrl("data:"));
+    return QNetworkAccessManager::createRequest(op, adjusted, outgoingData);
+  }
+
+  return QNetworkAccessManager::createRequest(op, req, outgoingData);
+}
+
 QString
 CutyPage::chooseFile(QWebFrame* /*frame*/, const QString& /*suggestedFile*/) {
   return QString::null;
@@ -162,12 +180,15 @@ CutyPage::setAttribute(QWebSettings::WebAttribute option,
 
 CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputFormat format,
                    const QString& scriptProp, const QString& scriptCode, bool insecure,
-                   bool smooth, int outQuality) {
+                   bool smooth, int outQuality, int pageWidth, int pageHeight, QRectF margins) {
   mPage = page;
   mOutput = output;
   mDelay = delay;
   mInsecure = insecure;
   mSmooth = smooth;
+  mPageWidth = pageWidth;
+  mPageHeight = pageHeight;
+  mMargins = margins;
   mSawInitialLayout = false;
   mSawDocumentComplete = false;
   mFormat = format;
@@ -284,7 +305,14 @@ CutyCapt::saveSnapshot() {
     case PdfFormat:
     case PsFormat: {
       QPrinter printer;
-      printer.setPageSize(QPrinter::A4);
+	  if (mPageWidth != 0 && mPageHeight != 0) {
+		printer.setPaperSize(QSizeF(mPageWidth, mPageHeight), QPrinter::Point);
+	  } else {
+		printer.setPageSize(QPrinter::A4);
+	  }
+      if (mMargins.left() >= 0 && mMargins.top() >= 0 && mMargins.right() >= 0 && mMargins.bottom() >= 0) {
+		printer.setPageMargins(mMargins.left(), mMargins.top(), mMargins.right(), mMargins.bottom(), QPrinter::Point);
+	  }
       printer.setOutputFileName(mOutput);
       // TODO: change quality here?
       mainFrame->print(&printer);
@@ -347,7 +375,7 @@ CaptHelp(void) {
 //  "  --user-styles=<url>            Location of user style sheet (deprecated)    \n"
     "  --user-style-path=<path>       Location of user style sheet file, if any    \n"
     "  --user-style-string=<css>      User style rules specified as text           \n"
-    "  --header=<name>:<value>        request header; repeatable; some can't be set\n"
+    "  --header=<name>:<value>        Request header; repeatable; some can't be set\n"
     "  --method=<get|post|put>        Specifies the request method (default: get)  \n"
     "  --body-string=<string>         Unencoded request body (default: none)       \n"
     "  --body-base64=<base64>         Base64-encoded request body (default: none)  \n"
@@ -359,8 +387,15 @@ CaptHelp(void) {
     "  --plugins=<on|off>             Plugin execution (default: unknown)          \n"
     "  --private-browsing=<on|off>    Private browsing (default: unknown)          \n"
     "  --auto-load-images=<on|off>    Automatic image loading (default: on)        \n"
+    "  --allow-remote-resources=<on|off> Allow loading remote resources (def.: on) \n"
     "  --js-can-open-windows=<on|off> Script can open windows? (default: unknown)  \n"
     "  --js-can-access-clipboard=<on|off> Script clipboard privs (default: unknown)\n"
+    "  --page-width=<pts>             Page width in points (default: A4 width)     \n"
+    "  --page-height=<pts>            Page height in points (default: A4 height)   \n"
+    "  --margin-left=<pts>            Left margin in points (default: unknown)     \n"
+    "  --margin-top=<pts>             Top margin in points (default: unknown)      \n"
+    "  --margin-bottom=<pts>          Right margin in points (default: unknown)    \n"
+    "  --margin-right=<pts>           Bottom margin in points (default: unknown)   \n"
 #if QT_VERSION >= 0x040500
     "  --print-backgrounds=<on|off>   Backgrounds in PDF/PS output (default: off)  \n"
     "  --zoom-factor=<float>          Page zoom factor (default: no zooming)       \n"
@@ -408,6 +443,12 @@ main(int argc, char *argv[]) {
   int argVerbosity = 0;
   int argSmooth = 0;
   int argOutQuality = 90;
+  int argPageWidth = 0;
+  int argPageHeight = 0;
+  int argMarginLeft = -1;
+  int argMarginTop = -1;
+  int argMarginRight = -1;
+  int argMarginBottom = -1;
 
   const char* argUrl = NULL;
   const char* argUserStyle = NULL;
@@ -427,7 +468,9 @@ main(int argc, char *argv[]) {
     QNetworkAccessManager::GetOperation;
   QByteArray body;
   QNetworkRequest req;
-  QNetworkAccessManager manager;
+  CutyNetworkAccessManager manager;
+
+  page.setNetworkAccessManager(&manager);
 
   // Parse command line parameters
   for (int ax = 1; ax < argc; ++ax) {
@@ -496,6 +539,30 @@ main(int argc, char *argv[]) {
       // TODO: see above
       argMaxWait = (unsigned int)atoi(value);
 
+    } else if (strncmp("--page-width", s, nlen) == 0) {
+      // TODO: see above
+      argPageWidth = (unsigned int)atoi(value);
+
+    } else if (strncmp("--page-height", s, nlen) == 0) {
+      // TODO: see above
+      argPageHeight = (unsigned int)atoi(value);
+
+    } else if (strncmp("--margin-left", s, nlen) == 0) {
+      // TODO: see above
+      argMarginLeft = (unsigned int)atoi(value);
+
+    } else if (strncmp("--margin-top", s, nlen) == 0) {
+      // TODO: see above
+      argMarginTop = (unsigned int)atoi(value);
+
+    } else if (strncmp("--margin-right", s, nlen) == 0) {
+      // TODO: see above
+      argMarginRight = (unsigned int)atoi(value);
+
+    } else if (strncmp("--margin-bottom", s, nlen) == 0) {
+      // TODO: see above
+      argMarginBottom = (unsigned int)atoi(value);
+
     } else if (strncmp("--out", s, nlen) == 0) {
       argOut = value;
 
@@ -519,6 +586,13 @@ main(int argc, char *argv[]) {
 
     } else if (strncmp("--auto-load-images", s, nlen) == 0) {
       page.setAttribute(QWebSettings::AutoLoadImages, value);
+
+    }  else if (strncmp("--allow-remote-resources", s, nlen) == 0) {
+      if (strcmp("on", value) == 0) {
+        manager.setAllowRemoteResources(true);
+      } else if (strcmp("off", value) == 0) {
+        manager.setAllowRemoteResources(false);
+      }
 
     } else if (strncmp("--javascript", s, nlen) == 0) {
       page.setAttribute(QWebSettings::JavascriptEnabled, value);
@@ -563,7 +637,6 @@ main(int argc, char *argv[]) {
       QNetworkProxy proxy = QNetworkProxy(QNetworkProxy::HttpProxy,
         p.host(), p.port(80), p.userName(), p.password());
       manager.setProxy(proxy);
-      page.setNetworkAccessManager(&manager);
 #endif
 
 #if CUTYCAPT_SCRIPT
@@ -656,7 +729,8 @@ main(int argc, char *argv[]) {
   }
 
   CutyCapt main(&page, argOut, argDelay, format, scriptProp, scriptCode,
-                !!argInsecure, !!argSmooth, argOutQuality);
+                !!argInsecure, !!argSmooth, argOutQuality, argPageWidth, argPageHeight,
+                QRectF(argMarginLeft, argMarginTop, argMarginRight, argMarginBottom));
 
   app.connect(&page,
     SIGNAL(loadFinished(bool)),
