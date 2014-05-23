@@ -38,6 +38,7 @@ protected:
   QString userAgentForUrl(const QUrl& url) const;
   QString mUserAgent;
   QString mAlertString;
+  QVector<int> mWidths;
   bool mPrintAlerts;
   CutyCapt* mCutyCapt;
 };
@@ -63,7 +64,11 @@ public:
            int outQuality,
 		       int pageWidth,
 		       int pageHeight,
-           QRectF margins);
+           QRectF margins,
+           QVector<int> widths);
+
+  void setAlertCount(int count);
+  int getAlertCount();
 
 private slots:
   void DocumentComplete(bool ok);
@@ -75,7 +80,7 @@ private slots:
 
 private:
   void TryDelayedRender();
-  void saveSnapshot();
+  void saveSnapshot(int scaleWidth = 0);
   bool mSawInitialLayout;
   bool mSawDocumentComplete;
 
@@ -92,5 +97,7 @@ protected:
   int          mOutQuality;
   int          mPageWidth;
   int          mPageHeight;
+  int          mAlertCount;
   QRectF       mMargins;
+  QVector<int> mWidths;
 };

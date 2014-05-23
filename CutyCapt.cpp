@@ -180,7 +180,8 @@ CutyPage::setAttribute(QWebSettings::WebAttribute option,
 
 CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputFormat format,
                    const QString& scriptProp, const QString& scriptCode, bool insecure,
-                   bool smooth, int outQuality, int pageWidth, int pageHeight, QRectF margins) {
+                   bool smooth, int outQuality, int pageWidth, int pageHeight, QRectF margins,
+                   QVector<int> widths) {
   mPage = page;
   mOutput = output;
   mDelay = delay;
@@ -196,6 +197,8 @@ CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputForma
   mScriptCode = scriptCode;
   mScriptObj = new QObject();
   mOutQuality = outQuality;
+  mWidths = widths;
+  mAlertCount = 1;
 
   // This is not really nice, but some restructuring work is
   // needed anyway, so this should not be that bad for now.
@@ -236,6 +239,16 @@ CutyCapt::JavaScriptWindowObjectCleared() {
 }
 
 void
+CutyCapt::setAlertCount(int count) {
+  mAlertCount = count;
+}
+
+int
+CutyCapt::getAlertCount() {
+  return mAlertCount;
+}
+
+void
 CutyCapt::TryDelayedRender() {
 
   if (!mPage->getAlertString().isEmpty())
@@ -258,8 +271,20 @@ CutyCapt::Timeout() {
 
 void
 CutyCapt::Delayed() {
-  saveSnapshot();
-  QApplication::exit();
+
+  if (mWidths.length() > 0) {
+    foreach (int width, mWidths) {
+      saveSnapshot(width);
+    }
+  } else {
+    saveSnapshot();
+  }
+
+  mAlertCount--;
+
+  if (mAlertCount == 0) {
+      QApplication::exit();
+  }
 }
 
 void
@@ -272,7 +297,7 @@ CutyCapt::handleSslErrors(QNetworkReply* reply, QList<QSslError>) {
 }
 
 void
-CutyCapt::saveSnapshot() {
+CutyCapt::saveSnapshot(int scaleWidth) {
   QWebFrame *mainFrame = mPage->mainFrame();
   QPainter painter;
   const char* format = NULL;
@@ -352,7 +377,16 @@ CutyCapt::saveSnapshot() {
 #endif
       mainFrame->render(&painter);
       painter.end();
-      image.save(mOutput, format, mOutQuality);
+
+      if (scaleWidth) {
+        image = image.scaledToWidth(scaleWidth, Qt::SmoothTransformation);
+      }
+
+      QString filename(mOutput);
+      filename.replace("%n", QString::number(mAlertCount))
+              .replace("%w", QString::number(scaleWidth));
+
+      image.save(filename, format, mOutQuality);
     }
   };
 }
@@ -449,6 +483,7 @@ main(int argc, char *argv[]) {
   int argMarginTop = -1;
   int argMarginRight = -1;
   int argMarginBottom = -1;
+  int argAlertCount = 1;
 
   const char* argUrl = NULL;
   const char* argUserStyle = NULL;
@@ -458,6 +493,8 @@ main(int argc, char *argv[]) {
   const char* argInjectScript = NULL;
   const char* argScriptObject = NULL;
   QString argOut;
+
+  QVector<int> argWidths(0);
 
   CutyCapt::OutputFormat format = CutyCapt::OtherFormat;
 
@@ -648,6 +685,16 @@ main(int argc, char *argv[]) {
 
     } else if (strncmp("--expect-alert", s, nlen) == 0) {
       page.setAlertString(value);
+
+    } else if (strncmp("--expect-alert-count", s, nlen) == 0) {
+      argAlertCount = (unsigned int)atoi(value);
+
+    } else if (strncmp("--resize-widths", s, nlen) == 0) {
+      QStringList widths = QString::fromLocal8Bit(value).split(",");
+       foreach (const QString &w, widths) {
+          argWidths.push_back(w.toInt());
+       }
+
 #endif
 
     } else if (strncmp("--app-name", s, nlen) == 0) {
@@ -730,7 +777,8 @@ main(int argc, char *argv[]) {
 
   CutyCapt main(&page, argOut, argDelay, format, scriptProp, scriptCode,
                 !!argInsecure, !!argSmooth, argOutQuality, argPageWidth, argPageHeight,
-                QRectF(argMarginLeft, argMarginTop, argMarginRight, argMarginBottom));
+                QRectF(argMarginLeft, argMarginTop, argMarginRight, argMarginBottom), argWidths);
+  main.setAlertCount(argAlertCount);
 
   app.connect(&page,
     SIGNAL(loadFinished(bool)),
