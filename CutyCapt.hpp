@@ -69,6 +69,8 @@ public:
 
   void setAlertCount(int count);
   int getAlertCount();
+  QString getLastAlert();
+  void setLastAlert(QString alert);
 
 private slots:
   void DocumentComplete(bool ok);
@@ -100,4 +102,5 @@ protected:
   int          mAlertCount;
   QRectF       mMargins;
   QVector<int> mWidths;
+  QString      mLastAlert;
 };

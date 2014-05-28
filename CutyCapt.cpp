@@ -125,7 +125,9 @@ CutyPage::javaScriptAlert(QWebFrame* /*frame*/, const QString& msg) {
   if (mPrintAlerts)
     qDebug() << "[alert]" << msg;
 
-  if (mAlertString == msg) {
+  QRegExp rx(mAlertString);
+  if (rx.exactMatch(msg)) {
+    mCutyCapt->setLastAlert(rx.cap(1));
     QTimer::singleShot(10, mCutyCapt, SLOT(Delayed()));
   }
 }
@@ -199,10 +201,21 @@ CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputForma
   mOutQuality = outQuality;
   mWidths = widths;
   mAlertCount = 1;
+  mLastAlert = "";
 
   // This is not really nice, but some restructuring work is
   // needed anyway, so this should not be that bad for now.
   mPage->setCutyCapt(this);
+}
+
+QString
+CutyCapt::getLastAlert() {
+  return mLastAlert;
+}
+
+void
+CutyCapt::setLastAlert(QString alert) {
+  mLastAlert = alert;
 }
 
 void
@@ -250,7 +263,6 @@ CutyCapt::getAlertCount() {
 
 void
 CutyCapt::TryDelayedRender() {
-
   if (!mPage->getAlertString().isEmpty())
     return;
 
@@ -384,7 +396,8 @@ CutyCapt::saveSnapshot(int scaleWidth) {
 
       QString filename(mOutput);
       filename.replace("%n", QString::number(mAlertCount))
-              .replace("%w", QString::number(scaleWidth));
+              .replace("%w", QString::number(scaleWidth))
+              .replace("%a", mLastAlert);
 
       image.save(filename, format, mOutQuality);
     }
