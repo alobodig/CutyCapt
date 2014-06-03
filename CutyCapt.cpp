@@ -407,6 +407,7 @@ CutyCapt::saveSnapshot(int scaleWidth) {
               .replace("%w", QString::number(scaleWidth))
               .replace("%a", mLastAlert);
 
+      QTextStream(stdout) << filename << endl;
       image.save(filename, format, mOutQuality);
     }
   };
