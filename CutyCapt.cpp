@@ -272,6 +272,12 @@ CutyCapt::TryDelayedRender() {
   }
 
   saveSnapshot();
+  if (mWidths.length() > 0) {
+    foreach (int width, mWidths) {
+      saveSnapshot(width);
+    }
+  }
+
   QApplication::exit();
 }
 
@@ -283,13 +289,11 @@ CutyCapt::Timeout() {
 
 void
 CutyCapt::Delayed() {
-
+  saveSnapshot();
   if (mWidths.length() > 0) {
     foreach (int width, mWidths) {
       saveSnapshot(width);
     }
-  } else {
-    saveSnapshot();
   }
 
   mAlertCount--;
@@ -390,7 +394,11 @@ CutyCapt::saveSnapshot(int scaleWidth) {
       mainFrame->render(&painter);
       painter.end();
 
-      if (scaleWidth) {
+      if (scaleWidth <= 0) {
+        scaleWidth = image.width();
+      }
+
+      if (scaleWidth >= 1) {
         image = image.scaledToWidth(scaleWidth, Qt::SmoothTransformation);
       }
 
