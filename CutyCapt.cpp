@@ -288,13 +288,14 @@ CutyCapt::Delayed() {
   mAlertCount--;
 
   if (mAlertCount == 0) {
-      QApplication::exit();
+      //QApplication::exit();
   }
 }
 
 void
 CutyCapt::handleSslErrors(QNetworkReply* reply, QList<QSslError>) {
   if (mInsecure) {
+    qDebug() << "[SSL] accepted certificate" << endl;
     reply->ignoreSslErrors();
   } else {
     // TODO: what to do here instead of hanging?
