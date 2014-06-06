@@ -288,7 +288,7 @@ CutyCapt::Delayed() {
   mAlertCount--;
 
   if (mAlertCount == 0) {
-      //QApplication::exit();
+      QApplication::exit();
   }
 }
 
