@@ -27,6 +27,7 @@
 #include <QtWebKit>
 #include <QtGui>
 #include <QSvgGenerator>
+#include <QtAlgorithms>
 
 #if QT_VERSION < 0x050000
 #include <QPrinter>
@@ -183,7 +184,7 @@ CutyPage::setAttribute(QWebSettings::WebAttribute option,
 CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputFormat format,
                    const QString& scriptProp, const QString& scriptCode, bool insecure,
                    bool smooth, int outQuality, int pageWidth, int pageHeight, QRectF margins,
-                   QVector<int> widths) {
+                   QSet<int> widths) {
   mPage = page;
   mOutput = output;
   mDelay = delay;
@@ -272,12 +273,6 @@ CutyCapt::TryDelayedRender() {
   }
 
   saveSnapshot();
-  if (mWidths.length() > 0) {
-    foreach (int width, mWidths) {
-      saveSnapshot(width);
-    }
-  }
-
   QApplication::exit();
 }
 
@@ -290,12 +285,6 @@ CutyCapt::Timeout() {
 void
 CutyCapt::Delayed() {
   saveSnapshot();
-  if (mWidths.length() > 0) {
-    foreach (int width, mWidths) {
-      saveSnapshot(width);
-    }
-  }
-
   mAlertCount--;
 
   if (mAlertCount == 0) {
@@ -313,7 +302,7 @@ CutyCapt::handleSslErrors(QNetworkReply* reply, QList<QSslError>) {
 }
 
 void
-CutyCapt::saveSnapshot(int scaleWidth) {
+CutyCapt::saveSnapshot() {
   QWebFrame *mainFrame = mPage->mainFrame();
   QPainter painter;
   const char* format = NULL;
@@ -394,21 +383,24 @@ CutyCapt::saveSnapshot(int scaleWidth) {
       mainFrame->render(&painter);
       painter.end();
 
-      if (scaleWidth <= 0) {
-        scaleWidth = image.width();
+      mWidths.insert(image.width());
+      QList<int> widths = mWidths.toList();
+      qSort(widths.begin(), widths.end(), qGreater<int>());
+
+      foreach (int width, widths) {
+        if (width != image.width()) {
+          image = image.scaledToWidth(width, Qt::SmoothTransformation);
+        }
+
+        QString filename(mOutput);
+        filename.replace("%n", QString::number(mAlertCount))
+                .replace("%w", QString::number(image.width()))
+                .replace("%h", QString::number(image.height()))
+                .replace("%a", mLastAlert);
+
+        image.save(filename, format, mOutQuality);
+        QTextStream(stdout) << filename << endl;
       }
-
-      if (scaleWidth >= 1) {
-        image = image.scaledToWidth(scaleWidth, Qt::SmoothTransformation);
-      }
-
-      QString filename(mOutput);
-      filename.replace("%n", QString::number(mAlertCount))
-              .replace("%w", QString::number(scaleWidth))
-              .replace("%a", mLastAlert);
-
-      image.save(filename, format, mOutQuality);
-      QTextStream(stdout) << filename << endl;
     }
   };
 }
@@ -516,7 +508,7 @@ main(int argc, char *argv[]) {
   const char* argScriptObject = NULL;
   QString argOut;
 
-  QVector<int> argWidths(0);
+  QSet<int> argWidths;
 
   CutyCapt::OutputFormat format = CutyCapt::OtherFormat;
 
@@ -714,7 +706,7 @@ main(int argc, char *argv[]) {
     } else if (strncmp("--resize-widths", s, nlen) == 0) {
       QStringList widths = QString::fromLocal8Bit(value).split(",");
        foreach (const QString &w, widths) {
-          argWidths.push_back(w.toInt());
+          argWidths.insert(w.toInt());
        }
 
 #endif

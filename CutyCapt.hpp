@@ -65,7 +65,7 @@ public:
 		       int pageWidth,
 		       int pageHeight,
            QRectF margins,
-           QVector<int> widths);
+           QSet<int> widths);
 
   void setAlertCount(int count);
   int getAlertCount();
@@ -82,7 +82,7 @@ private slots:
 
 private:
   void TryDelayedRender();
-  void saveSnapshot(int scaleWidth = 0);
+  void saveSnapshot();
   bool mSawInitialLayout;
   bool mSawDocumentComplete;
 
@@ -101,6 +101,6 @@ protected:
   int          mPageHeight;
   int          mAlertCount;
   QRectF       mMargins;
-  QVector<int> mWidths;
+  QSet<int>    mWidths;
   QString      mLastAlert;
 };
