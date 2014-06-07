@@ -76,24 +76,6 @@ static struct _CutyExtMap {
   { CutyCapt::OtherFormat,       "",            ""      }
 };
 
-CutyNetworkAccessManager::CutyNetworkAccessManager() {
-  mAllowRemoteResources = true;
-}
-
-void CutyNetworkAccessManager::setAllowRemoteResources(bool allowRemoteResources) {
-  mAllowRemoteResources = allowRemoteResources;
-}
-
-QNetworkReply * CutyNetworkAccessManager::createRequest(Operation op, const QNetworkRequest & req, QIODevice * outgoingData) {
-  if (req.url().scheme() != "file" && !mAllowRemoteResources) {
-    QNetworkRequest adjusted = req;
-    adjusted.setUrl(QUrl("data:"));
-    return QNetworkAccessManager::createRequest(op, adjusted, outgoingData);
-  }
-
-  return QNetworkAccessManager::createRequest(op, req, outgoingData);
-}
-
 QString
 CutyPage::chooseFile(QWebFrame* /*frame*/, const QString& /*suggestedFile*/) {
   return QString::null;
@@ -387,7 +369,6 @@ CaptHelp(void) {
     "  --plugins=<on|off>             Plugin execution (default: unknown)          \n"
     "  --private-browsing=<on|off>    Private browsing (default: unknown)          \n"
     "  --auto-load-images=<on|off>    Automatic image loading (default: on)        \n"
-    "  --allow-remote-resources=<on|off> Allow loading remote resources (def.: on) \n"
     "  --js-can-open-windows=<on|off> Script can open windows? (default: unknown)  \n"
     "  --js-can-access-clipboard=<on|off> Script clipboard privs (default: unknown)\n"
     "  --page-width=<pts>             Page width in points (default: A4 width)     \n"
@@ -468,9 +449,7 @@ main(int argc, char *argv[]) {
     QNetworkAccessManager::GetOperation;
   QByteArray body;
   QNetworkRequest req;
-  CutyNetworkAccessManager manager;
-
-  page.setNetworkAccessManager(&manager);
+  QNetworkAccessManager manager;
 
   // Parse command line parameters
   for (int ax = 1; ax < argc; ++ax) {
@@ -586,13 +565,6 @@ main(int argc, char *argv[]) {
 
     } else if (strncmp("--auto-load-images", s, nlen) == 0) {
       page.setAttribute(QWebSettings::AutoLoadImages, value);
-
-    }  else if (strncmp("--allow-remote-resources", s, nlen) == 0) {
-      if (strcmp("on", value) == 0) {
-        manager.setAllowRemoteResources(true);
-      } else if (strcmp("off", value) == 0) {
-        manager.setAllowRemoteResources(false);
-      }
 
     } else if (strncmp("--javascript", s, nlen) == 0) {
       page.setAttribute(QWebSettings::JavascriptEnabled, value);
@@ -794,5 +766,5 @@ main(int argc, char *argv[]) {
   else
     page.mainFrame()->load(req, method);
 
-  return app.exec();
+    return app.exec();
 }
