@@ -5,18 +5,6 @@
 #include <QtWebKitWidgets>
 #endif
 
-class CutyNetworkAccessManager : public QNetworkAccessManager {
-  Q_OBJECT
-
-public:
-  CutyNetworkAccessManager();
-  void setAllowRemoteResources(bool allowRemoteResources);
-  QNetworkReply * createRequest(Operation op, const QNetworkRequest & req, QIODevice * outgoingData = 0);
-
-protected:
-  bool mAllowRemoteResources;
-};
-
 class CutyCapt;
 class CutyPage : public QWebPage {
   Q_OBJECT
