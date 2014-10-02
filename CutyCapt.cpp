@@ -166,7 +166,7 @@ CutyPage::setAttribute(QWebSettings::WebAttribute option,
 CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputFormat format,
                    const QString& scriptProp, const QString& scriptCode, bool insecure,
                    bool smooth, int outQuality, int pageWidth, int pageHeight, QRectF margins,
-                   QSet<int> widths, bool skipOrigWidth) {
+                   QSet<int> widths, bool skipOrigWidth, QRect crop) {
   mPage = page;
   mOutput = output;
   mDelay = delay;
@@ -186,6 +186,7 @@ CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputForma
   mAlertCount = 1;
   mLastAlert = "";
   mSkipOrigWidth = skipOrigWidth;
+  mCrop = crop;
 
   // This is not really nice, but some restructuring work is
   // needed anyway, so this should not be that bad for now.
@@ -370,6 +371,10 @@ CutyCapt::saveSnapshot() {
       QList<int> widths = mWidths.toList();
       qSort(widths.begin(), widths.end(), qGreater<int>());
 
+      if (mCrop.right() > 0 && mCrop.bottom() > 0) {
+          image = image.copy(mCrop);
+      }
+
       foreach (int width, widths) {
         if (width != image.width()) {
           image = image.scaledToWidth(width, Qt::SmoothTransformation);
@@ -484,6 +489,10 @@ main(int argc, char *argv[]) {
   int argMarginBottom = -1;
   int argAlertCount = 1;
   int argSkipOrigWidth = 0;
+  int argCropX = -1;
+  int argCropY = -1;
+  int argCropWidth = -1;
+  int argCropHeight = -1;
 
   const char* argUrl = NULL;
   const char* argUserStyle = NULL;
@@ -585,6 +594,22 @@ main(int argc, char *argv[]) {
     } else if (strncmp("--page-height", s, nlen) == 0) {
       // TODO: see above
       argPageHeight = (unsigned int)atoi(value);
+
+    } else if (strncmp("--crop-x", s, nlen) == 0) {
+      // TODO: see above
+      argCropX = (unsigned int)atoi(value);
+
+    } else if (strncmp("--crop-y", s, nlen) == 0) {
+      // TODO: see above
+      argCropY = (unsigned int)atoi(value);
+
+    } else if (strncmp("--crop-width", s, nlen) == 0) {
+      // TODO: see above
+      argCropWidth = (unsigned int)atoi(value);
+
+    } else if (strncmp("--crop-height", s, nlen) == 0) {
+      // TODO: see above
+      argCropHeight = (unsigned int)atoi(value);
 
     } else if (strncmp("--margin-left", s, nlen) == 0) {
       // TODO: see above
@@ -772,7 +797,7 @@ main(int argc, char *argv[]) {
 
   CutyCapt main(&page, argOut, argDelay, format, scriptProp, scriptCode,
                 !!argInsecure, !!argSmooth, argOutQuality, argPageWidth, argPageHeight,
-                QRectF(argMarginLeft, argMarginTop, argMarginRight, argMarginBottom), argWidths, argSkipOrigWidth);
+                QRectF(argMarginLeft, argMarginTop, argMarginRight, argMarginBottom), argWidths, argSkipOrigWidth, QRect(argCropX, argCropY, argCropWidth, argCropHeight));
   main.setAlertCount(argAlertCount);
 
   app.connect(&page,
