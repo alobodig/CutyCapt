@@ -65,7 +65,8 @@ public:
 		       int pageWidth,
 		       int pageHeight,
            QRectF margins,
-           QSet<int> widths);
+           QSet<int> widths,
+           bool skipOrigWith);
 
   void setAlertCount(int count);
   int getAlertCount();
@@ -102,5 +103,6 @@ protected:
   int          mAlertCount;
   QRectF       mMargins;
   QSet<int>    mWidths;
+  bool         mSkipOrigWidth;
   QString      mLastAlert;
 };

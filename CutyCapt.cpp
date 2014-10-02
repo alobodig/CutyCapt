@@ -184,7 +184,7 @@ CutyPage::setAttribute(QWebSettings::WebAttribute option,
 CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputFormat format,
                    const QString& scriptProp, const QString& scriptCode, bool insecure,
                    bool smooth, int outQuality, int pageWidth, int pageHeight, QRectF margins,
-                   QSet<int> widths) {
+                   QSet<int> widths, bool skipOrigWidth) {
   mPage = page;
   mOutput = output;
   mDelay = delay;
@@ -203,6 +203,7 @@ CutyCapt::CutyCapt(CutyPage* page, const QString& output, int delay, OutputForma
   mWidths = widths;
   mAlertCount = 1;
   mLastAlert = "";
+  mSkipOrigWidth = skipOrigWidth;
 
   // This is not really nice, but some restructuring work is
   // needed anyway, so this should not be that bad for now.
@@ -392,6 +393,7 @@ CutyCapt::saveSnapshot() {
         if (width != image.width()) {
           image = image.scaledToWidth(width, Qt::SmoothTransformation);
         }
+        else if (mSkipOrigWidth) continue;
 
         QString filename(mOutput);
         filename.replace("%n", QString::number(mAlertCount))
@@ -445,6 +447,8 @@ CaptHelp(void) {
     "  --margin-top=<pts>             Top margin in points (default: unknown)      \n"
     "  --margin-bottom=<pts>          Right margin in points (default: unknown)    \n"
     "  --margin-right=<pts>           Bottom margin in points (default: unknown)   \n"
+    "  --resize-widths=<widths>       CSV list of widths to resize rendered image  \n"
+    "  --skip-orig-width              Don't save original image when resizing      \n"
 #if QT_VERSION >= 0x040500
     "  --print-backgrounds=<on|off>   Backgrounds in PDF/PS output (default: off)  \n"
     "  --zoom-factor=<float>          Page zoom factor (default: no zooming)       \n"
@@ -499,6 +503,7 @@ main(int argc, char *argv[]) {
   int argMarginRight = -1;
   int argMarginBottom = -1;
   int argAlertCount = 1;
+  int argSkipOrigWidth = 0;
 
   const char* argUrl = NULL;
   const char* argUserStyle = NULL;
@@ -546,6 +551,10 @@ main(int argc, char *argv[]) {
 
     } else if (strcmp("--insecure", s) == 0) {
       argInsecure = 1;
+      continue;
+
+    } else if (strcmp("--skip-orig-width", s) == 0) {
+      argSkipOrigWidth = 1;
       continue;
 
 #if QT_VERSION >= 0x050000
@@ -792,7 +801,7 @@ main(int argc, char *argv[]) {
 
   CutyCapt main(&page, argOut, argDelay, format, scriptProp, scriptCode,
                 !!argInsecure, !!argSmooth, argOutQuality, argPageWidth, argPageHeight,
-                QRectF(argMarginLeft, argMarginTop, argMarginRight, argMarginBottom), argWidths);
+                QRectF(argMarginLeft, argMarginTop, argMarginRight, argMarginBottom), argWidths, argSkipOrigWidth);
   main.setAlertCount(argAlertCount);
 
   app.connect(&page,
